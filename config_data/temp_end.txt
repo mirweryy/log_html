@@ -1,0 +1,575 @@
+  const VIRTUAL_WIDTH = 1000000;
+  let container2;
+  let canvas;
+  let spacer;
+  let info;
+  let ctx;
+  let canvasPoints = [];   // будет хранить { x, y, info }
+  // let start_pos_x = 30.5;
+  // let start_pos_y = 30.5;
+  let px_min_x = 30; 
+  let size_arr = [5, 10, 15, 30, 60, 90, 150];
+  let current_index = 3;
+  let max_len = 6;
+  //let px_min_y = 30;
+  let scale_y = 1;
+  let px_min_y = 30 * scale_y;
+  let px_min_height_width = 1;
+  let len_start_pos_y = 30.5;
+  let len_start_pos_x = 30.5;
+
+
+  let time_later = [0, [0, 0, 0, 0, 0, 0, 0, 0]];
+  let max_count = 0;
+  const rootStyle = getComputedStyle(document.documentElement);
+  //[  TRACE, WARNING, DEBUG, INFO, CRITICAL, ERROR, UNSPEC, ALL]
+  let color = [rootStyle.getPropertyValue('--trace-color'), rootStyle.getPropertyValue('--warning-color'), rootStyle.getPropertyValue('--debug-color'), rootStyle.getPropertyValue('--info-color'), rootStyle.getPropertyValue('--critical-color'), 
+  rootStyle.getPropertyValue('--error-color'), rootStyle.getPropertyValue('--unspec-color'), rootStyle.getPropertyValue('--all-color')];
+  // Типы логов (названия) и их индексы (0–7)
+  const logTypeNames = ['TRACE', 'WARNING', 'DEBUG', 'INFO', 'CRITICAL', 'ERROR', 'UNSPEC', 'ALL'];
+  // Активные типы для графика (изначально все)
+  let activeGraphTypes = [0, 1, 2, 3, 4, 5, 6, 7];
+
+  const tables = {1: table1, 2: table2, 3: table3, 4: table4, 5: table5, 6: table6, 7: table7, 8: table8};
+  const container = document.getElementById('dynamicTableContainer');
+  const buttons = document.querySelectorAll('.table-btn');
+  let selectedTables = new Set();   // выбранные номера (1-7)
+  let currentMode = 'combined';     // 'combined', 'summary', 'timeline'
+
+  function renderSummaryHTML() {
+    let html = `<div class="summary-grid">`;
+    staticSummaryData.forEach(card => {
+      html += `<div class="summary-card"><h3>${card.title}</h3><table class="mini-table">`;
+      card.fields.forEach(field => {
+        html += `<tr><td class="stat-label">${field.label}</td><td class="stat-value">${field.value}</td></tr>`;
+      });
+      html += `</table></div>`;
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  function showSummary() {
+    currentMode = 'summary';
+    container.innerHTML = renderSummaryHTML();
+    //removeActive();
+    //document.querySelector('[data-summary]').classList.add('active');
+  }
+
+
+  for (let i = 1; i <= count_time; ++i)
+  {
+    for (let j = 0; j < 8; ++j)
+    {
+      if (time_container[i][j] > max_count)
+      {
+        max_count = time_container[i][j];
+      }
+    }
+  }
+  console.log(max_count);
+  let px_max_count;
+
+  function parseTimeToMs(timeStr) {
+      timeStr = timeStr.trim();
+      let match = timeStr.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
+      if (match) return (parseInt(match[1])*3600000) + (parseInt(match[2])*60000) + (parseInt(match[3])*1000) + parseInt(match[4]);
+      match = timeStr.match(/(\d{2}):(\d{2}):(\d{2})/);
+      if (match) return (parseInt(match[1])*3600000) + (parseInt(match[2])*60000) + (parseInt(match[3])*1000);
+      match = timeStr.match(/(\d{2}):(\d{2})/);
+      if (match) return (parseInt(match[1])*3600000) + (parseInt(match[2])*60000);
+      return Infinity;
+  }
+
+  function extractRowsWithTime(html) {
+      if (!html) return [];
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const table = doc.querySelector('table');
+      if (!table) return [];
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return [];
+      const rows = [];
+      for (let row of tbody.children) {
+          const firstTd = row.querySelector('td:first-child');
+          if (firstTd) {
+              const timeText = firstTd.textContent.trim();
+              const timeMs = parseTimeToMs(timeText);
+              rows.push({ html: row.outerHTML, timeMs: timeMs });
+          } else {
+              rows.push({ html: row.outerHTML, timeMs: Infinity });
+          }
+      }
+      return rows;
+  }
+
+  function renderCombinedTable() {
+      if (currentMode !== 'combined') return;
+      if (selectedTables.size === 0) {
+          container.innerHTML = '<div class="placeholder-message">Не выбрано ни одного типа логов</div>';
+          return;
+      }
+      let allRows = [];
+      for (let i = 1; i <= 7; i++) {
+          if (selectedTables.has(i)) {
+              const rows = extractRowsWithTime(tables[i]);
+              allRows.push(...rows);
+          }
+      }
+      // Сортировка по времени (от ранних к поздним)
+      allRows.sort((a, b) => a.timeMs - b.timeMs);
+      const rowsHtml = allRows.map(row => row.html).join('');
+      const html = `
+          <table class="combined-table">
+              <thead><tr><th>Time</th><th>Type</th><th>Info</th></tr></thead>
+              <tbody>${rowsHtml}</tbody>
+          </table>
+          <div style="font-size: 12px; color: gray; margin-top: 8px;">Отсортировано по времени ↑</div>
+      `;
+      container.innerHTML = html;
+  }
+
+  // Обновление активных классов у кнопок
+  function updateActiveButtons() {
+    buttons.forEach(btn => {
+      // Игнорируем кнопки «Общая сводка» и «Временная шкала»
+      if (btn.hasAttribute('data-summary') || btn.hasAttribute('data-timeline')) return;
+      
+      if (btn.hasAttribute('data-table') && btn.dataset.table !== '8') {
+        const num = parseInt(btn.dataset.table);
+        if (selectedTables.has(num)) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+    });
+    const allBtn = document.querySelector('[data-table="8"]');
+    if (allBtn) {
+      if (selectedTables.size === 7) allBtn.classList.add('active');
+      else allBtn.classList.remove('active');
+    }
+  }
+
+  // Переключение выбора обычной таблицы (1-7)
+  function toggleTable(num) {
+      if (selectedTables.has(num)) selectedTables.delete(num);
+      else selectedTables.add(num);
+      updateActiveButtons();
+      currentMode = 'combined';
+      renderCombinedTable();
+  }
+
+  // Выбор всех типов (1-7)
+  function selectAll() {
+      if (selectedTables.size === 7) {
+          // Если все уже выбраны – снимаем все
+          selectedTables.clear();
+      } else {
+          // Иначе выбираем все 1-7
+          for (let i = 1; i <= 7; i++) {
+              selectedTables.add(i);
+          }
+      }
+      updateActiveButtons();
+      currentMode = 'combined';
+      renderCombinedTable();
+  }
+
+
+  function renderTimelineHTML() {
+  // Кнопки фильтров
+  let filterButtons = logTypeNames.map((name, idx) => {
+    let activeClass = activeGraphTypes.includes(idx) ? ' active' : '';
+    return `<button class="graph-filter-btn${activeClass}" data-gtype="${idx}">${name}</button>`;
+  }).join('');
+
+  return `
+    <div class="zoom-controls">
+      <button id="zoomOutBtn" class="table-btn" title="Уменьшить масштаб">–</button>
+      <button id="zoomInBtn" class="table-btn" title="Увеличить масштаб">+</button>
+    </div>
+    <div class="graph-filter-panel">
+      ${filterButtons}
+    </div>
+    <div style="text-align: center;">
+      <div class="scroll-box" id="scrollContainer">
+        <canvas id="myCanvas"></canvas>
+        <div class="scroll-spacer" id="spacer"></div>
+      </div>
+      <div class="info" id="info">Прокрутите вправо →</div>
+    </div>`;
+}
+
+  function setupGraphFilters() {
+    document.querySelectorAll('.graph-filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const gtype = parseInt(this.dataset.gtype);
+        const idx = activeGraphTypes.indexOf(gtype);
+        if (idx === -1) {
+          activeGraphTypes.push(gtype);
+          this.classList.add('active');
+        } else {
+          activeGraphTypes.splice(idx, 1);
+          this.classList.remove('active');
+        }
+        drawVisible(); // перерисовываем график
+      });
+    });
+  }
+
+  function showTimeline() {
+      currentMode = 'timeline';
+      activeGraphTypes = [0, 1, 2, 3, 4, 5, 6, 7];
+      container.innerHTML = renderTimelineHTML();
+      setupGraphFilters();
+      container2 = document.getElementById('scrollContainer');
+      canvas = document.getElementById('myCanvas');
+      spacer = document.getElementById('spacer');
+      info = document.getElementById('info');
+      ctx = canvas.getContext('2d');   
+      canvas.width = container2.clientWidth;
+      canvas.height = container2.clientHeight;
+      px_max_count =  (canvas.height - 40) / max_count;
+      spacer.style.width = VIRTUAL_WIDTH + 'px';
+      container2.addEventListener('scroll', drawVisible);
+      drawVisible();
+      removeActive();
+      //document.querySelector('[data-timeline]').classList.add('active');
+      document.getElementById('zoomInBtn').addEventListener('click', () => {
+        if (current_index < 6) {
+          ++current_index;          // увеличиваем шаг по X
+          px_min_x = size_arr[current_index];
+          drawVisible();          // перерисовываем
+        }
+      });
+      document.getElementById('zoomOutBtn').addEventListener('click', () => {
+        if (current_index > 1) {
+          --current_index;          // уменьшаем шаг по X
+          px_min_x = size_arr[current_index];
+          drawVisible();          // перерисовываем
+        }
+      });
+      canvas.addEventListener('mousemove', (e) => {
+        const { mx, my } = getMouseCanvasCoords(e);
+        const point = findHoveredPoint(mx, my);
+        showTooltip(e, point);
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        tooltip.classList.add('hidden');
+      });
+    }
+
+    function removeActive() {
+      buttons.forEach(btn => btn.classList.remove('active'));
+    }
+
+    const tooltip = document.getElementById('canvasPointTooltip');
+
+    function showTooltip(e, point) {
+      if (point) {
+        tooltip.textContent = point.info;
+        tooltip.classList.remove('hidden');
+        let left = e.clientX + 15;
+        let top = e.clientY + 15;
+        // профилактика выхода за правый/нижний край экрана
+        if (left + tooltip.offsetWidth > window.innerWidth) {
+          left = e.clientX - tooltip.offsetWidth - 8;
+        }
+        if (top + tooltip.offsetHeight > window.innerHeight) {
+          top = e.clientY - tooltip.offsetHeight - 8;
+        }
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+      } else {
+        tooltip.classList.add('hidden');
+      }
+    }
+
+    function findHoveredPoint(mx, my) {
+      for (let p of canvasPoints) {
+        const dx = mx - p.x;
+        const dy = my - p.y;
+        if (Math.hypot(dx, dy) <= 6) {   // радиус срабатывания — 6px
+          return p;
+        }
+      }
+      return null;
+    }
+
+    function getMouseCanvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const mouseX = (e.clientX - rect.left) * scaleX;
+      const mouseY = (e.clientY - rect.top) * scaleY;
+      return { mx: mouseX, my: mouseY };
+    }
+
+    function addMinutes(timeStr, minutesToAdd) {
+        let [hours, minutes] = timeStr.split(':').map(Number);
+        let totalMinutes = hours * 60 + minutes + minutesToAdd;
+        
+        let days = Math.floor(totalMinutes / (24 * 60));
+        let remaining = totalMinutes % (24 * 60);
+        
+        // Корректировка отрицательных остатков
+        if (remaining < 0) {
+            days = Math.ceil(totalMinutes / (24 * 60)); // может быть -1, -2...
+            remaining = totalMinutes - days * 24 * 60;
+            if (remaining < 0) remaining += 24 * 60;
+        }
+        
+        let newHours = Math.floor(remaining / 60);
+        let newMinutes = remaining % 60;
+        
+        let timePart = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+        
+        if (days === 0) return timePart;
+        if (days > 0) return `${days} д. ${timePart}`;
+        return `${days} д. ${timePart}`; // для отрицательных дней
+    }
+
+    function myDrawFunction(scrollleft) {
+      canvasPoints = [];
+      let temp_color = [...activeGraphTypes];
+      let start_pos_y = canvas.height - len_start_pos_y;
+      let start_pos_x = len_start_pos_x;
+      let px_first_x = 0;
+      let circul_pos_x = 0;
+      let circul_pos_y = 0;
+      canvas.style.left = scrollleft + "px";
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = "#000000";
+      ctx.fillStyle = "#000000";
+      if (scrollleft <= len_start_pos_x)
+      { 
+        start_pos_x = len_start_pos_x - Math.floor(scrollleft);
+        ctx.font = "10px serif";
+        ctx.fillText(0, start_pos_x, start_pos_y + 10);
+      }
+      else
+      {
+        start_pos_x = 4.5;
+        px_first_x = Math.floor(scrollleft % px_min_x);
+      }
+      for (let i = 0; i < Math.floor(canvas.height / px_min_y); ++i)
+        {
+          ctx.beginPath();
+          ctx.moveTo(start_pos_x, start_pos_y);
+          ctx.lineTo(start_pos_x, start_pos_y - px_min_y);
+          ctx.moveTo(start_pos_x, start_pos_y);
+          ctx.lineTo(start_pos_x - px_min_height_width, start_pos_y);
+          ctx.lineTo(start_pos_x - px_min_height_width, start_pos_y - px_min_y);
+          ctx.moveTo(start_pos_x  - px_min_height_width - 2, start_pos_y - px_min_y);
+          ctx.lineTo(start_pos_x + 2, start_pos_y - px_min_y);
+          ctx.stroke();
+          ctx.font = "10px serif";
+          let num_string = 0;
+          if ((canvas.height - (start_pos_y - px_min_y + len_start_pos_y)) <= 250)
+          {
+            num_string = Math.floor((canvas.height - (start_pos_y - px_min_y) - len_start_pos_y) * 2);
+          }
+          else if ((canvas.height - (start_pos_y - px_min_y + len_start_pos_y)) > 250 && (canvas.height - (start_pos_y - px_min_y + len_start_pos_y)) <= 500)
+          {
+            num_string = 500 + Math.floor((canvas.height - (start_pos_y - px_min_y) - len_start_pos_y - 250) * 4);
+          }
+          else if ((canvas.height - (start_pos_y - px_min_y + len_start_pos_y)) > 500)
+          {
+            if (max_count < 1500)
+            {
+              num_string = 1500 + Math.floor((canvas.height - (start_pos_y - px_min_y) - len_start_pos_y - 250) * 4);
+            }
+            else
+            {
+              num_string = 1500 + (Math.floor((canvas.height - (start_pos_y - px_min_y) - len_start_pos_y - 500)) * (max_count - 1500) / (canvas.height - 500 - 50));
+            }
+          }
+          ctx.fillText(Math.floor(num_string), start_pos_x + 2, start_pos_y - px_min_y - 0.5);
+          start_pos_y -= px_min_y;
+        }
+      start_pos_y = canvas.height - len_start_pos_y;
+      let temp_indx = 1;
+      if ((scrollleft > len_start_pos_x) && (px_min_x > len_start_pos_x))
+      {
+        temp_indx = Math.floor(scrollleft / px_min_x) + 1;
+      }
+      else if ((scrollleft > len_start_pos_x) && (px_min_x <= len_start_pos_x))
+      {
+        temp_indx = Math.floor(Math.abs(scrollleft - (scrollleft % px_min_x) - len_start_pos_x + 0.5) / px_min_x) + 1;
+      }
+      ctx.beginPath();
+      ctx.moveTo(start_pos_x, start_pos_y);
+      ctx.lineTo(start_pos_x + px_min_x - px_first_x, start_pos_y);
+      ctx.moveTo(start_pos_x, start_pos_y);
+      ctx.lineTo(start_pos_x, start_pos_y - px_min_height_width);
+      ctx.lineTo(start_pos_x + px_min_x - px_first_x, start_pos_y - px_min_height_width);
+      ctx.moveTo(start_pos_x + px_min_x - px_first_x, start_pos_y - px_min_height_width - 2);
+      ctx.lineTo(start_pos_x + px_min_x - px_first_x, start_pos_y + 2);
+      ctx.stroke();
+      ctx.font = "10px serif";
+      ctx.fillText(temp_indx, start_pos_x + px_min_x - px_first_x - 0.5, start_pos_y + 10);
+      //console.log(temp_indx);
+      if (0 < temp_indx && temp_indx <= count_time)
+      {
+        time_later[0] = start_pos_x + px_min_x - px_first_x - 0.5;
+        for (let j = 0; j < 9; ++j)
+        {
+          if (temp_color.includes(j))
+          {
+            ctx.fillStyle = color[j];
+            let circul_pos_y = 0;
+            if (time_container[temp_indx][j] <= 500)
+            {
+              circul_pos_y = canvas.height - (time_container[temp_indx][j] / 2) - len_start_pos_y;
+            }
+            else if (time_container[temp_indx][j] <= 1500 && time_container[temp_indx][j] > 500)
+            {
+              circul_pos_y = canvas.height - ((time_container[temp_indx][j] - 500) / 4) - 250 - len_start_pos_y;
+            }
+            else
+            {
+              circul_pos_y = canvas.height - (((time_container[temp_indx][j] - 1500) * (canvas.height - 500 - 50)) / (max_count - 1500) ) - 500 - len_start_pos_y;
+            }
+            // circul_pos_y = canvas.height - (time_container[temp_indx][j] * px_max_count) - len_start_pos_y;
+            ctx.beginPath();
+            ctx.moveTo(start_pos_x + px_min_x - px_first_x - 0.5, circul_pos_y);
+            ctx.arc(start_pos_x + px_min_x - px_first_x - 0.5, circul_pos_y, 3, 0, 2 * Math.PI, true);
+            ctx.fill();
+            canvasPoints.push({
+              x: start_pos_x + px_min_x - 0.5,
+              y: circul_pos_y,
+              info: `График: ${logTypeNames[j]} | Время: ${addMinutes(time_start, temp_indx)} | ${time_container[temp_indx][j]} событий `
+            });
+            if (scrollleft < len_start_pos_x)
+            {
+              ctx.beginPath();
+              ctx.moveTo(start_pos_x, start_pos_y);
+              ctx.lineTo(start_pos_x + px_min_x - px_first_x - 0.5, circul_pos_y);
+              ctx.strokeStyle = color[j];
+              ctx.stroke();
+            }
+            time_later[1][j] = circul_pos_y;
+          }
+        }
+      }
+      ctx.fillStyle = "#000000";
+      //console.log(temp_indx);
+      temp_indx++;
+      start_pos_x += px_min_x - px_first_x;
+      for (let i = 0; i < Math.floor(canvas.width / px_min_x); ++i)
+        {
+          ctx.beginPath();
+          ctx.strokeStyle = "#000000";
+          ctx.fillStyle = "#000000";
+          ctx.moveTo(start_pos_x, start_pos_y);
+          ctx.lineTo(start_pos_x + px_min_x, start_pos_y);
+          ctx.moveTo(start_pos_x, start_pos_y);
+          ctx.lineTo(start_pos_x, start_pos_y - px_min_height_width);
+          ctx.lineTo(start_pos_x + px_min_x, start_pos_y - px_min_height_width);
+          ctx.moveTo(start_pos_x + px_min_x, start_pos_y - px_min_height_width - 2);
+          ctx.lineTo(start_pos_x + px_min_x, start_pos_y + 2);
+          ctx.stroke();
+          ctx.font = "10px serif";
+          if (px_min_x == 5)
+          { 
+            if (temp_indx % 15 == 0)
+            {
+              ctx.fillText(temp_indx, start_pos_x + px_min_x - 0.5, start_pos_y + 10);
+            }
+          }
+          else if (px_min_x == 10)
+          {
+            if (temp_indx % 10 == 0)
+            {
+              ctx.fillText(temp_indx, start_pos_x + px_min_x - 0.5, start_pos_y + 10);
+            }
+          }
+          else if (px_min_x == 15)
+          {
+            if (temp_indx % 5 == 0)
+            {
+              ctx.fillText(temp_indx, start_pos_x + px_min_x - 0.5, start_pos_y + 10);
+            }
+          }
+          else
+          {
+             ctx.fillText(temp_indx, start_pos_x + px_min_x - 0.5, start_pos_y + 10);
+          }
+          //console.log(temp_indx);
+          if (0 < temp_indx && temp_indx <= count_time)
+          {
+            for (let j = 0; j < 9; ++j)
+            {
+              if (temp_color.includes(j))
+              {
+                ctx.fillStyle = color[j];
+                let circul_pos_y = 0;
+                if (time_container[temp_indx][j] <= 500)
+                {
+                  circul_pos_y = canvas.height - (time_container[temp_indx][j] / 2) - len_start_pos_y;
+                }
+                else if (time_container[temp_indx][j] <= 1500 && time_container[temp_indx][j] > 500)
+                {
+                  circul_pos_y = canvas.height - ((time_container[temp_indx][j] - 500) / 4) - 250 - len_start_pos_y;
+                }
+                else
+                {
+                  circul_pos_y = canvas.height - (((time_container[temp_indx][j] - 1500) * (canvas.height - 500 - 50)) / (max_count - 1500) ) - 500 - len_start_pos_y;
+                }
+                ctx.beginPath();
+                ctx.moveTo(start_pos_x + px_min_x - 0.5, circul_pos_y);
+                ctx.arc(start_pos_x + px_min_x - 0.5, circul_pos_y, 3, 0, 2 * Math.PI, true);
+                ctx.fill();
+                canvasPoints.push({
+                  x: start_pos_x + px_min_x - 0.5,
+                  y: circul_pos_y,
+                  info: `График: ${logTypeNames[j]} | Время: ${addMinutes(time_start, temp_indx)} | ${time_container[temp_indx][j]} событий `
+                });
+                ctx.beginPath();
+                ctx.moveTo(time_later[0], time_later[1][j]);
+                ctx.lineTo(start_pos_x + px_min_x - 0.5, circul_pos_y);
+                ctx.strokeStyle = color[j];
+                ctx.stroke();
+                time_later[1][j] = circul_pos_y;
+              }
+            }
+            time_later[0] = start_pos_x + px_min_x - 0.5;
+          }
+          start_pos_x += px_min_x;
+          ++temp_indx;
+        }
+    }
+
+    function drawVisible() {
+      const scrollLeft = container2.scrollLeft;
+      myDrawFunction(scrollLeft);
+      info.textContent = `Прокрутка: ${scrollLeft} px из ${VIRTUAL_WIDTH} px`;
+    }
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        removeActive();  // снимаем выделение со всех кнопок
+        if (this.hasAttribute('data-summary')) {
+          this.classList.add('active');
+          showSummary();
+        } else if (this.hasAttribute('data-timeline')) {
+          this.classList.add('active');
+          showTimeline();
+        } else if (this.hasAttribute('data-table')) {
+          const tableNum = this.dataset.table;
+          if (tableNum === '8') {
+            selectAll();
+          } else {
+            toggleTable(parseInt(tableNum));
+          }
+        }
+      });
+    });
+
+    // Инициализация: по умолчанию выбрана таблица CRITICAL (1)
+    selectedTables.add(1);
+    updateActiveButtons();
+    renderCombinedTable();
+  })();
+</script>
+</body>
+</html>

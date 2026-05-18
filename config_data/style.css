@@ -1,0 +1,271 @@
+@import url('colors.css');
+
+* {
+    box-sizing: border-box;
+    font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+.critical-row {
+    background-color: var(--critical-color);
+    color: var(--critical-color-border) !important;
+}
+.debug-row {
+    background-color: var(--debug-color);
+    color: var(--debug-color-border) !important;
+}
+.trace-row {
+    background-color: var(--trace-color);
+    color: var(--trace-color-border) !important;
+}
+.info-row {
+    background-color: var(--info-color);
+    color: var(--info-color-border) !important;
+}
+.warning-row {
+    background-color: var(--warning-color);
+    color: var(--warning-color-border) !important;
+}
+.error-row {
+    background-color: var(--error-color);
+    color: var(--error-color-border) !important;
+}
+.unspec-row {
+    background-color: var(--unspec-color);
+    color: var(--unspec-color-border) !important;
+}
+.all-row {
+    background-color: var(--all-color);
+    color: var(--all-color-border) !important;
+}
+body {
+    background: linear-gradient(145deg, #f6f9fc 0%, #e9f2f9 100%);
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.zoom-controls {
+    position: absolute;
+    top: 40px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+.scroll-box {
+    width: 10000px;
+    max-width: 1700px;
+    height: 800px;
+    overflow-x: auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+    position: relative;
+}
+
+canvas {
+    display: block;
+    height: 100%;
+    width: 1900px;
+    position: absolute;
+    /* left: px; */
+    /* ширина будет установлена в JS под размер контейнера */
+}
+/* невидимый спейсер задаёт общую «виртуальную» ширину */
+.scroll-spacer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 1px;
+    visibility: hidden;
+    pointer-events: none;
+}
+.info {
+    margin-top: 8px;
+    text-align: center;
+    color: #333;
+    font-size: 0.9rem;
+}
+.card {
+    /* max-width: 1200px; */
+    width: 90%;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 2.5rem;
+    box-shadow: 0 20px 40px rgba(0, 10, 30, 0.15);
+    padding: 2rem 2rem 2.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+}
+h1 {
+    margin: 0 0 0.35rem;
+    font-weight: 600;
+    font-size: 2.4rem;
+    color: #1a2e3b;
+    text-align: center;
+}
+.subhead {
+    text-align: center;
+    margin-bottom: 1.8rem;
+    color: #3a5670;
+    font-size: 1.1rem;
+    border-bottom: 1px dashed #b6cbd9;
+    padding-bottom: 0.9rem;
+}
+.button-panel {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px 16px;
+    margin-bottom: 2.4rem;
+}
+.table-btn[data-table="1"].active { background-color: var(--critical-color); color: white; border-color: var(--critical-color-border); }      /* CRITICAL – красный */
+.table-btn[data-table="2"].active { background-color: var(--debug-color); color: white; border-color: var(--debug-color-border); }      /* DEBUG – бирюзовый */
+.table-btn[data-table="3"].active { background-color: var(--trace-color); color: white; border-color: var(--trace-color-border); }      /* TRACE – фиолетовый */
+.table-btn[data-table="4"].active { background-color: var(--info-color); color: white; border-color: var(--info-color-border); }      /* INFO – зелёный */
+.table-btn[data-table="5"].active { background-color: var(--warning-color); color: #212529; border-color: var(--warning-color-border); }    /* WARNING – жёлтый (тёмный текст) */
+.table-btn[data-table="6"].active { background-color: var(--error-color); color: white; border-color: var(--error-color-border); }      /* ERROR – оранжевый */
+.table-btn[data-table="7"].active { background-color: var(--unspec-color); color: white; border-color: var(--unspec-colo-borderr); }      /* UNSPEC – серый */
+.table-btn[data-table="8"].active { background-color: var(--all-color); color: white; border-color: var(--all-color-border); }     /* ALL – мятный (можно любой) */
+.table-btn {
+    background: #ffffffdb;
+    border: 1.5px solid #cbdae6;
+    color: #1e3b4f;
+    padding: 0.85rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 60px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+    backdrop-filter: blur(4px);
+    transition: all 0.2s;
+    min-width: 120px;
+}
+.table-btn:hover {
+    background: #e1eff9;
+    border-color: #6c9ac3;
+    transform: translateY(-2px);
+}
+.table-btn.active {
+    background: #1e3b4f;
+    border-color: #1e3b4f;
+    color: white;
+}
+.table-wrapper {
+    background: #ffffffc9;
+    backdrop-filter: blur(8px);
+    border-radius: 28px;
+    padding: 1.2rem;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.02), 0 10px 20px -10px rgba(26,46,59,0.1);
+    min-height: 380px;
+}
+.table-container {
+    overflow-x: auto;
+    border-radius: 20px;
+    background: #fdfdfe;
+    padding: 6px 4px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+th {
+    background: #1e3b4f;
+    color: white;
+    padding: 14px 18px;
+    font-weight: 600;
+}
+td {
+    padding: 12px 18px;
+    border-bottom: 1px solid #dde5ed;
+    color: #1f3a4c;
+}
+
+/* Сводка */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    padding: 10px 5px;
+}
+
+/* Панель фильтров типов логов на графике */
+.graph-filter-panel {
+    position: absolute;
+    top: -15px;
+    left: 500px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    z-index: 10;
+}
+.graph-filter-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 40px;
+    background: #ffffffdb;
+    border: 1.5px solid #cbdae6;
+    color: #1e3b4f;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.graph-filter-btn:hover {
+    background: #e1eff9;
+    border-color: #6c9ac3;
+}
+.graph-filter-btn.active {
+    color: white;
+    border-color: transparent;
+}
+.graph-filter-btn[data-gtype="0"].active { background-color: var(--trace-color); } /* TRACE */
+.graph-filter-btn[data-gtype="1"].active { background-color: var(--warning-color); color: #000; } /* WARNING */
+.graph-filter-btn[data-gtype="2"].active { background-color: var(--debug-color); } /* DEBUG */
+.graph-filter-btn[data-gtype="3"].active { background-color: var(--info-color); } /* INFO */
+.graph-filter-btn[data-gtype="4"].active { background-color: var(--critical-color); } /* CRITICAL */
+.graph-filter-btn[data-gtype="5"].active { background-color: var(--error-color); } /* ERROR */
+.graph-filter-btn[data-gtype="6"].active { background-color: var(--unspec-color)} /* UNSPEC */
+.graph-filter-btn[data-gtype="7"].active { background-color: var(--all-color); } /* ALL */
+.summary-card {
+    background: #f9fcff;
+    border-radius: 20px;
+    padding: 16px 18px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.04);
+    border: 1px solid #d3e2ee;
+}
+.canvas-tooltip {
+    position: fixed;
+    background: #1e293bdd;
+    backdrop-filter: blur(6px);
+    color: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-family: monospace;
+    border-left: 3px solid #facc15;
+    pointer-events: none;
+    z-index: 2000;
+    white-space: nowrap;
+    transition: opacity 0.1s;
+}
+.canvas-tooltip.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+.summary-card h3 {
+    margin: 0 0 12px;
+    color: #1e3b4f;
+    /* border-left: 5px solid #2c5a7a; */
+    padding-left: 12px;
+}
+.mini-table td {
+    padding: 6px 8px;
+    border-bottom: 1px dashed #c0d4e5;
+}
+.stat-label { font-weight: 600; }
+.stat-value { text-align: right; font-family: monospace; }

@@ -1,0 +1,24 @@
+:root 
+{
+    /*Цвет фона */
+
+    --trace-color: #708090;
+    --debug-color: #5f9ea0;
+    --info-color: #52b788;
+    --error-color: #E35D5D;
+    --critical-color: #8b0000;
+    --warning-color: #e9c56a;
+    --unspec-color: #8e7dbe;
+    --all-color: #ce7da5;
+/* 
+    Цвет бортиков */
+    --trace-color-border: #4f5b66;  
+    --debug-color-border: #467577;  
+    --info-color-border: #3a8561;  
+    --error-color-border: #b04545;  
+    --critical-color-border: #5a0000;  
+    --warning-color-border: #c29f45;   
+    --unspec-color-border: #6b5b95;  
+    --all-color-border: #a6567d;
+}
+
